@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -38,8 +38,24 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
       
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Get version from pubspec
+        id: version
+        run: |
+          VERSION=$(grep "^version:" pubspec.yaml | sed 's/version: //' | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION-build.${{ github.run_number }}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            Automated build from commit ${{ github.sha }}
+            
+            Version: ${{ steps.version.outputs.version }}
+            Build: #${{ github.run_number }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+          draft: false
+          prerelease: false
+
